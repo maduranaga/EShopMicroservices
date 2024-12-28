@@ -1,5 +1,8 @@
 ﻿using BuildingBlocks.CQRS;
 using Catalog.API.Models;
+using FluentValidation;
+using JasperFx.CodeGeneration.Frames;
+using Marten;
 
 namespace Catalog.API.Products.CreateProduct
 {
@@ -8,20 +11,32 @@ namespace Catalog.API.Products.CreateProduct
                   : ICommand<CreateProductResult>;
     public record CreateProductResult(Guid Id);
 
-
-    internal  class CreateProductHandler : ICommandHandler<CreateProductCommand, CreateProductResult>
+    public class CreateProductCommandValidator : AbstractValidator<CreateProductCommand>
     {
-        public async Task<CreateProductResult> Handle(CreateProductCommand request, CancellationToken cancellationToken)
+        public CreateProductCommandValidator()
+        {
+            RuleFor(x => x.Name).NotEmpty().WithMessage("Name Is Requried");
+            RuleFor(x => x.Catergory).NotEmpty().WithMessage("Category Is Requried");
+        }
+    }
+
+    internal class CreateProductHandler(IDocumentSession session, IValidator<CreateProductCommand> validator)
+        : ICommandHandler<CreateProductCommand, CreateProductResult>
+    {
+        public async Task<CreateProductResult> Handle(CreateProductCommand command, CancellationToken cancellationToken)
         {
             var product = new Product
             {
-                Name = request.Name,
-                Catergory = request.Catergory,
-                Description = request.Description,
-                ImageFile = request.ImageFile,
+                Name = command.Name,
+                Catergory = command.Catergory,
+                Description = command.Description,
+                ImageFile = command.ImageFile,
             };
 
-            return new CreateProductResult(Guid.NewGuid());
+            session.Store(product);
+            await session.SaveChangesAsync(cancellationToken);
+
+            return new CreateProductResult(product.Id);
         }
     }
 }

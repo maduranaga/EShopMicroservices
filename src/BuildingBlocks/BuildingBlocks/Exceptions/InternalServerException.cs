@@ -6,8 +6,17 @@ using System.Threading.Tasks;
 
 namespace BuildingBlocks.Exceptions
 {
-    public class InternalServerException
+    public class InternalServerException : Exception
     {
-        public InternalServerException() { }    
+        public InternalServerException(string message) : base(message)
+        {
+        }
+
+        public InternalServerException(string message, string details) : base(message)
+        {
+            Deatils = details;
+        }
+
+        public string Deatils { get; }
     }
 }

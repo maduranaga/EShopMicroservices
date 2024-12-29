@@ -1,12 +1,7 @@
-using System.Net.Sockets;
 using BuildingBlocks.Behavior;
-using Carter;
+using BuildingBlocks.Exceptions.Handler;
 using FluentValidation;
 using Marten;
-using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.DependencyInjection;
-using static System.Net.Mime.MediaTypeNames;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +11,7 @@ builder.Services.AddMediatR(config =>
 {
     config.RegisterServicesFromAssembly(assembly);
     config.AddOpenBehavior(typeof(ValidationBehavior<,>));
+    config.AddOpenBehavior(typeof(LoggingBehavior<,>));
 });
 
 builder.Services.AddValidatorsFromAssembly(assembly);
@@ -25,34 +21,11 @@ builder.Services.AddMarten(opts =>
     opts.Connection(builder.Configuration.GetConnectionString("Database"));
 }).UseLightweightSessions();
 
+builder.Services.AddExceptionHandler<CustomExceptionHandler>();
+
 var app = builder.Build();
 app.MapCarter();
 
-app.UseExceptionHandler(exceptionHandlerApp =>
-{
-    exceptionHandlerApp.Run(async context =>
-    {
-        var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
-        if (exception == null)
-        {
-            return;
-        }
-
-        var promblemeDetails = new ProblemDetails
-        {
-            Title = exception.Message,
-            Status = StatusCodes.Status500InternalServerError,
-            Detail = exception.StackTrace
-        };
-
-        var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
-        logger.LogError(exception,exception.Message);
-
-        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-        context.Response.ContentType = "application/problem+json";
-
-        await context.Response.WriteAsJsonAsync(promblemeDetails);
-    });
-});
+app.UseExceptionHandler(options => { });
 
 app.Run();
